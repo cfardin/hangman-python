@@ -1,58 +1,49 @@
+from flask import Flask, render_template, request, session, redirect, url_for
 import random
-from hangman_art import logo, stages
 from hangman_word import word_list
+from hangman_art import stages, logo
 
+app = Flask(__name__)
+app.secret_key = "your_secret_key"  # Needed for session management
 
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    if 'lives' not in session:
+        session['lives'] = 6
+        session['word'] = random.choice(word_list)
+        session['display'] = ['_'] * len(session['word'])
+        session['guesses'] = []
 
-print(logo)
-print("########## Guess the word game ##########\n")
-n = len(stages)
-int(n)
+    message = ""
+    if request.method == 'POST':
+        guess = request.form['guess'].lower()
+        if guess in session['guesses']:
+            message = f"You already guessed '{guess}'."
+        else:
+            session['guesses'].append(guess)
+            if guess in session['word']:
+                for i, c in enumerate(session['word']):
+                    if c == guess:
+                        session['display'][i] = guess
+                if '_' not in session['display']:
+                    message = "🎉 You win!"
+            else:
+                session['lives'] -= 1
+                if session['lives'] == 0:
+                    message = f"💀 You lost! The word was '{session['word']}'."
 
-chosen_word = random.choice(word_list)
+    return render_template('index.html',
+                           logo=logo,
+                           display=' '.join(session['display']),
+                           guesses=session['guesses'],
+                           lives=session['lives'],
+                           stage=stages[session['lives']],
+                           message=message)
 
-#Testing code
-print(f'Pssst, the solution is {chosen_word}.')
+@app.route('/reset')
+def reset():
+    session.clear()
+    return redirect(url_for('home'))
 
-#TODO-1: - Create an empty List called display.
-
-display = []
-for c in chosen_word:
-        display += '_'
-
-for i in display:
-    print(i, end=" ")
-lol = True
-lives = 6
-while lol:
-    guess = input("\nGuess a letter: ").lower()
-
-
-    for i in range(0, len(chosen_word)):
-        if chosen_word[i] == guess:
-            display[i] = guess
-    
-    if guess in display:
-        print(f"\nYou have already used this letter {guess}\n")
-    else:
-        print(f"\nThe letter {guess} is not in the chosen word")
-
-    if guess not in chosen_word:
-        print(stages[lives])
-        lives-=1
-        print("The letter is not in the word ! ")
-
-    if lives == 0:
-         print(stages[0])
-         print("\nYou lost\n")
-         break
-    else:
-
-        if '_' not in display:
-            lol = False
-
-        for i in display:
-            print(i, end="")
-
-        if not lol:
-            print("\nYou win")
+if __name__ == '__main__':
+    app.run(debug=True)
